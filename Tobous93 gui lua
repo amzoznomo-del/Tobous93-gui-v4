@@ -1,0 +1,519 @@
+-- Tobous93 gui v4 (F3X & HD Admin Integration)
+-- Background Image ID: 97333348867568
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Helper Functions
+local function getHDAdmin()
+	local success, rc = pcall(function()
+		return ReplicatedStorage:WaitForChild("HDAdminHDClient", 2).Signals.RequestCommandSilent
+	end)
+	return rc
+end
+
+local function getF3XRemote()
+	local char = LocalPlayer.Character
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	local tool = (backpack and backpack:FindFirstChild("Building Tools")) or (char and char:FindFirstChild("Building Tools"))
+	if tool then
+		local endpoint = tool:FindFirstChild("SyncAPI") and tool.SyncAPI:FindFirstChild("ServerEndpoint")
+		return endpoint
+	end
+	return nil
+end
+
+-- Function to lock everything and setup auto-lock + HD Admin command
+local function applyRealmLock()
+	local function lockAll()
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				local model = obj:FindFirstAncestorOfClass("Model")
+				if not model or not Players:GetPlayerFromCharacter(model) then
+					obj.Locked = true
+				end
+			end
+		end
+	end
+	lockAll()
+	Workspace.DescendantAdded:Connect(function(obj)
+		if obj:IsA("BasePart") then
+			local model = obj:FindFirstAncestorOfClass("Model")
+			if not model or not Players:GetPlayerFromCharacter(model) then
+				obj.Locked = true
+			end
+		end
+	end)
+	task.spawn(function()
+		local hd = _G.HDAdminMain
+		if hd and hd.CommandModule then
+			hd.CommandModule:AddCommand({
+				Name = "lockall", Aliases = {"lockmap"}, Prefixes = {";", ":"}, Rank = 2, Arguments = {},
+				Description = "Lock map",
+				Function = function(speaker, args) lockAll() return "Locked!" end
+			})
+		end
+	end)
+end
+
+-- Check and Auto Get F3X if missing on startup
+task.spawn(function()
+	task.wait(1)
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	local hasF3X = (backpack and backpack:FindFirstChild("Building Tools")) or (char and char:FindFirstChild("Building Tools"))
+	
+	if not hasF3X then
+		local rc = getHDAdmin()
+		if rc then
+			rc:InvokeServer(";Btools")
+		end
+	end
+end)
+
+-- Create GUI ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Tobous93GuiV4"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 480)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -240)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+-- Yellow Border (UIStroke)
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(255, 255, 0)
+uiStroke.Thickness = 3
+uiStroke.Parent = mainFrame
+
+-- Background Image
+local bgImage = Instance.new("ImageLabel")
+bgImage.Name = "BackgroundImage"
+bgImage.Size = UDim2.new(1, 0, 1, 0)
+bgImage.BackgroundTransparency = 1
+bgImage.Image = "rbxassetid://97333348867568"
+bgImage.ScaleType = Enum.ScaleType.Slice
+bgImage.ImageTransparency = 0.3
+bgImage.Parent = mainFrame
+
+-- Title Label (Updated Name: Tobous93 gui v4)
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0, 200, 0, 30)
+titleLabel.Position = UDim2.new(0.5, -100, 0, 10)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Tobous93 gui v4"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = mainFrame
+
+local function createButton(name, text, size, position, callback)
+	local btn = Instance.new("TextButton")
+	btn.Name = name
+	btn.Size = size
+	btn.Position = position
+	btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = text
+	btn.TextScaled = true
+	btn.Font = Enum.Font.SourceSans
+	btn.Parent = mainFrame
+	
+	btn.MouseButton1Click:Connect(callback)
+	return btn
+end
+
+-- Top Bar Buttons (Get F3X & Shutdown)
+createButton("GetF3XBtn", "get F3x", UDim2.new(0, 75, 0, 25), UDim2.new(0, 10, 0, 10), function()
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";Btools") end
+end)
+
+createButton("ShutdownBtn", "shutdown", UDim2.new(0, 75, 0, 25), UDim2.new(1, -85, 0, 10), function()
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";shutdown") end
+end)
+
+-- Themes & Extra Top Buttons (Re, R15, R6)
+createButton("Theme1Btn", "Theme 1", UDim2.new(0, 70, 0, 20), UDim2.new(0, 10, 0, 40), function()
+	local musicId = "5410086218"
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";music " .. musicId .. " ;pitch 0.85 ;volume 999") end
+end)
+
+createButton("Theme2Btn", "Theme 2", UDim2.new(0, 70, 0, 20), UDim2.new(0, 10, 0, 63), function()
+	local musicId = "108531350726198"
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";music " .. musicId .. " ;pitch 1 ;volume 999") end
+end)
+
+createButton("ReBtn", "Re", UDim2.new(0, 65, 0, 20), UDim2.new(0, 85, 0, 40), function()
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";re") end
+end)
+
+createButton("R15Btn", "R15", UDim2.new(0, 65, 0, 20), UDim2.new(0, 85, 0, 63), function()
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";r15") end
+end)
+
+createButton("R6Btn", "R6", UDim2.new(0, 70, 0, 20), UDim2.new(1, -155, 0, 40), function()
+	local rc = getHDAdmin()
+	if rc then rc:InvokeServer(";r6") end
+end)
+
+-- Scrolling Frame for Command Buttons
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1, -20, 0, 370)
+scrollingFrame.Position = UDim2.new(0, 10, 0, 95)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.BorderSizePixel = 0
+scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
+scrollingFrame.Parent = mainFrame
+
+local uigrid = Instance.new("UIGridLayout")
+uigrid.CellSize = UDim2.new(0, 93, 0, 30)
+uigrid.CellPadding = UDim2.new(0, 5, 0, 5)
+uigrid.Parent = scrollingFrame
+
+-- Ball Loop Control Variables
+local ballRunning = false
+local ballTask = nil
+
+-- Buttons Data List
+local buttonsData = {
+	{"Decal", function()
+		local id = "101250916305593"
+		local remote = getF3XRemote()
+		if remote then
+			for _, v in pairs(workspace:GetDescendants()) do
+				if v:IsA("BasePart") then
+					task.spawn(function()
+						remote:InvokeServer("SetLocked", {v}, false)
+						for _, face in pairs(Enum.NormalId:GetEnumItems()) do
+							remote:InvokeServer("CreateTextures", {{["Part"] = v, ["Face"] = face, ["TextureType"] = "Decal"}})
+							remote:InvokeServer("SyncTexture", {{["Part"] = v, ["Face"] = face, ["TextureType"] = "Decal", ["Texture"] = "rbxassetid://"..id}})
+						end
+					end)
+				end
+			end
+		end
+	end},
+	{"Decal 2", function()
+		local id = "97333348867568"
+		local remote = getF3XRemote()
+		if remote then
+			for _, v in pairs(workspace:GetDescendants()) do
+				if v:IsA("BasePart") then
+					task.spawn(function()
+						remote:InvokeServer("SetLocked", {v}, false)
+						for _, face in pairs(Enum.NormalId:GetEnumItems()) do
+							remote:InvokeServer("CreateTextures", {{["Part"] = v, ["Face"] = face, ["TextureType"] = "Decal"}})
+							remote:InvokeServer("SyncTexture", {{["Part"] = v, ["Face"] = face, ["TextureType"] = "Decal", ["Texture"] = "rbxassetid://"..id}})
+						end
+					end)
+				end
+			end
+		end
+	end},
+	{"skybox", function()
+		local id = "94914585108843"
+		local rc = getHDAdmin()
+		if rc then rc:InvokeServer(";fogcolor black") end
+		local remote = getF3XRemote()
+		local char = LocalPlayer.Character
+		if remote and char and char:FindFirstChild("HumanoidRootPart") then
+			local pos = char.HumanoidRootPart.Position + Vector3.new(1, 10, 0)
+			local cleanCF = CFrame.new(pos)
+			remote:InvokeServer("CreatePart", "Normal", cleanCF, workspace)
+			task.wait(0.5)
+			for _, v in pairs(workspace:GetChildren()) do
+				if v:IsA("BasePart") and (v.Position - pos).Magnitude < 5 then
+					remote:InvokeServer("SyncMove", {{["Part"] = v, ["CFrame"] = cleanCF}})
+					remote:InvokeServer("CreateMeshes", {{["Part"] = v}})
+					remote:InvokeServer("SyncMesh", {{["Part"] = v, ["MeshId"] = "rbxassetid://111891702759441", ["TextureId"] = "rbxassetid://" .. id, ["Scale"] = Vector3.new(4000, 4000, 4000)}})
+					remote:InvokeServer("SetName", {v}, "SkyBox_Z")
+					remote:InvokeServer("SetLocked", {v}, true)
+				end
+			end
+		end
+	end},
+	{"skybox 2", function()
+		local id = "77376724804100"
+		local rc = getHDAdmin()
+		if rc then rc:InvokeServer(";fogcolor black") end
+		local remote = getF3XRemote()
+		local char = LocalPlayer.Character
+		if remote and char and char:FindFirstChild("HumanoidRootPart") then
+			local pos = char.HumanoidRootPart.Position + Vector3.new(1, 10, 0)
+			local cleanCF = CFrame.new(pos)
+			remote:InvokeServer("CreatePart", "Normal", cleanCF, workspace)
+			task.wait(0.5)
+			for _, v in pairs(workspace:GetChildren()) do
+				if v:IsA("BasePart") and (v.Position - pos).Magnitude < 5 then
+					remote:InvokeServer("SyncMove", {{["Part"] = v, ["CFrame"] = cleanCF}})
+					remote:InvokeServer("CreateMeshes", {{["Part"] = v}})
+					remote:InvokeServer("SyncMesh", {{["Part"] = v, ["MeshId"] = "rbxassetid://111891702759441", ["TextureId"] = "rbxassetid://" .. id, ["Scale"] = Vector3.new(4000,4000,4000)}})
+					remote:InvokeServer("SetName", {v}, "SkyBox_Z")
+					remote:InvokeServer("SetLocked", {v}, true)
+				end
+			end
+		end
+	end},
+	{"skybox spin", function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Skybox-spinn/refs/heads/main/Y"))()
+	end},
+	{"ball", function()
+		if not ballRunning then
+			ballRunning = true
+			ballTask = task.spawn(function()
+				while ballRunning do
+					pcall(function()
+						loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Io/refs/heads/main/Iuj"))()
+					end)
+					task.wait(1)
+				end
+			end)
+		end
+	end},
+	{"stop ball", function()
+		ballRunning = false
+		if ballTask then
+			task.cancel(ballTask)
+			ballTask = nil
+		end
+	end},
+	{"particle", function()
+		local Players = game:GetService("Players")
+		local LocalPlayer = Players.LocalPlayer
+
+		local DECAL_LIST = {
+		    "77376724804100",
+		    "94914585108843",
+		    "137060080517268",
+		    "101250916305593",
+		    "97333348867568"
+		}
+
+		-- Search for F3X Remote (SyncAPI ServerEndpoint)
+		local function getF3XRemoteInternal()
+		    local tool
+		    if LocalPlayer.Character then
+		        tool = LocalPlayer.Character:FindFirstChild("Building Tools+") or LocalPlayer.Character:FindFirstChild("Building Tools")
+		    end
+		    if not tool and LocalPlayer:FindFirstChild("Backpack") then
+		        tool = LocalPlayer.Backpack:FindFirstChild("Building Tools+") or LocalPlayer.Backpack:FindFirstChild("Building Tools")
+		    end
+		    if not tool then
+		        for _, v in ipairs(LocalPlayer:GetDescendants()) do
+		            if v.Name == "SyncAPI" then tool = v.Parent break end
+		        end
+		    end
+		    if not tool then
+		        for _, v in ipairs(game.ReplicatedStorage:GetDescendants()) do
+		            if v.Name == "SyncAPI" then tool = v.Parent break end
+		        end
+		    end
+		    if tool and tool:FindFirstChild("SyncAPI") then
+		        return tool.SyncAPI:FindFirstChild("ServerEndpoint")
+		    end
+		    return nil
+		end
+
+		local remote = getF3XRemoteInternal()
+		if not remote then
+		    warn("F3X Remote not found (Please hold F3X tool or keep it in Backpack before running)")
+		    return
+		end
+
+		local function _(args) 
+		    pcall(function() 
+		        remote:InvokeServer(unpack(args)) 
+		    end) 
+		end
+
+		-- Create Particle via F3X Remote
+		local function SpawnParticle(part) 
+		    _({"CreateDecorations", {{["Part"] = part, ["DecorationType"] = "ParticleEmitter"}}}) 
+		end
+
+		-- Configure Particle properties (Rate = 50, Lifetime = 120 seconds)
+		local function SyncParticle(part, tex) 
+		    _({"SyncDecorate", {{
+		        ["Part"] = part,
+		        ["DecorationType"] = "ParticleEmitter",
+		        ["Texture"] = "rbxassetid://" .. tex,
+		        ["Size"] = "1", 
+		        ["Speed"] = 5,
+		        ["Rate"] = 50,               -- 10 times per 0.20 seconds
+		        ["Lifetime"] = 120,          -- 2 minutes (120 seconds)
+		        ["SpreadAngle"] = 50,
+		        ["LightEmission"] = 1,
+		        ["LightInfluence"] = 0
+		    }}}) 
+		end
+
+		-- Process each Part
+		local processedParts = {}
+
+		local function processPart(part)
+		    if part:IsA("BasePart") and not processedParts[part] then
+		        processedParts[part] = true
+		        
+		        -- Pick a random Decal ID from the list
+		        local randomDecal = DECAL_LIST[math.random(1, #DECAL_LIST)]
+		        
+		        task.spawn(function()
+		            SpawnParticle(part)
+		            task.wait(0.05)
+		            SyncParticle(part, randomDecal)
+		        end)
+		    end
+		end
+
+		-- 1. Apply to existing parts in Workspace
+		for _, obj in ipairs(workspace:GetDescendants()) do
+		    processPart(obj)
+		end
+
+		-- 2. Detect newly created parts (Supports F3X creation/cloning)
+		workspace.DescendantAdded:Connect(function(newItem)
+		    task.wait(0.05)
+		    processPart(newItem)
+		end)
+
+		print("Successfully connected to F3X Remote and applied particles!")
+	end},
+	{"Particle 2", function()
+		loadstring(game:HttpGet("https://scriptblox.com/raw/F3X-Building-Tools-MLG-Particle-F3X-By-zl0ew-233549"))()
+	end},
+	{"Clear all", function()
+		local remote = getF3XRemote()
+		local char = LocalPlayer.Character
+		if remote then
+			local objects = {}
+			for _, v in pairs(workspace:GetChildren()) do
+				if v:IsA("BasePart") or v:IsA("Model") or v:IsA("Folder") then
+					if not v:IsDescendantOf(char) and v.Name ~= "Terrain" then
+						table.insert(objects, v)
+					end
+				end
+			end
+			remote:InvokeServer("Remove", objects)
+		end
+	end},
+	{"###", function()
+		local remote = getF3XRemote()
+		local char = LocalPlayer.Character
+		if remote then
+			local parts = {}
+			for _, v in pairs(workspace:GetDescendants()) do
+				if v:IsA("BasePart") and not v:IsDescendantOf(char) then
+					table.insert(parts, v)
+				end
+			end
+			for i = 1, 2000 do
+				for _, p in pairs(parts) do
+					task.spawn(function()
+						if p and p.Parent then
+							local rCol = Color3.new(math.random(), math.random(), math.random())
+							local rSize = Vector3.new(math.random(1, 15), math.random(15, 15), math.random(1, 15))
+							remote:InvokeServer("SyncColor", {{["Part"] = p, ["Color"] = rCol, ["UnionColoring"] = false}})
+							remote:InvokeServer("SyncMaterial", {{["Part"] = p, ["Material"] = Enum.Material.Neon}})
+							remote:InvokeServer("SyncResize", {{["Part"] = p, ["CFrame"] = p.CFrame, ["Size"] = rSize}})
+						end
+					end)
+				end
+				task.wait(0.15)
+			end
+			remote:InvokeServer("Remove", parts)
+		end
+	end},
+	{"Unanchor", function()
+		local remote = getF3XRemote()
+		if remote then
+			for _, v in ipairs(workspace:GetDescendants()) do
+				if v:IsA("BasePart") or v:IsA("UnionOperation") then
+					task.spawn(function()
+						remote:InvokeServer("SyncAnchor", {{["Part"] = v, ["Anchored"] = false}})
+					end)
+				end
+			end
+		end
+	end},
+	{"K00pgui v8", function()
+		loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-k00pgui-v8-F3X-EDITON-52670"))()
+	end},
+	{"Cmdbar2", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";cmdbar2") end end},
+	{"Cmdbar", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";cmdbar") end end},
+	{"Char k00pkidd", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";R6 all ;char all k00pkiddsur") end end},
+	{"Char c00l", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";r6 all ;char all melamun_wak") end end},
+	{"message 1", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";sm Tobous93 team join today") end end},
+	{"message 2", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";sm  TOBOUS93 HAXX SERVER NOW") end end},
+	{"Hint 1", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";sh LOL") end end},
+	{"Hint 2", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";sh Tobous93 team join today") end end},
+	{"Alert 1", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Alert Server haxx lol") end end},
+	{"Alert 2", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Alert Tobous93 team join today") end end},
+	{"Title all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Title all Tobous93 is Here") end end},
+	{"Title me", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Title me Tobous93") end end},
+	{"Kill all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";kill all") end end},
+	{"Char all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Char all Tobous93") end end},
+	{"Char me", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";char me Tobous93") end end},
+	{"time", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Time 60") end end},
+	{"Tp all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Tp all me") end end},
+	{"freeze all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";freeze all") end end},
+	{"disco mesh", function() loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Meah/refs/heads/main/Disco"))() end},
+	{"speed me 40", function()
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+			LocalPlayer.Character.Humanoid.WalkSpeed = 40
+		end
+	end},
+	{"Disco body", function() loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/-/refs/heads/main/%3F"))() end},
+	{"Head shak", function() loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Headssssssssddd/refs/heads/main/Hhhhhh"))() end},
+	{"float Pad", function() loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/-/refs/heads/main/%3F"))() end},
+	{"spin all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";spin all") end end},
+	{"spin me", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";spin me") end end},
+	{"fly", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";fly") end end},
+	{"disco", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";Disco ;Fog 9999") end end},
+	{"Noot Noot", function() loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-noot-noot-f3x-10751"))() end},
+	{"stopmusic", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";music") end end},
+	{"Explode all", function() local rc = getHDAdmin() if rc then rc:InvokeServer(";explode all") end end},
+	{"Realm", function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Oa/refs/heads/main/I"))()
+		applyRealmLock()
+	end},
+	{"Realm 2", function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/amzoznomo-del/Realm-4/refs/heads/main/L"))()
+		local rc = getHDAdmin()
+		if rc then
+			rc:InvokeServer(";Time 90")
+		end
+		applyRealmLock()
+	end}
+}
+
+-- Generate Scrolling Buttons
+for _, data in ipairs(buttonsData) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 93, 0, 30)
+	btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = data[1]
+	btn.TextScaled = true
+	btn.Font = Enum.Font.SourceSans
+	btn.Parent = scrollingFrame
+	
+	btn.MouseButton1Click:Connect(data[2])
+end
